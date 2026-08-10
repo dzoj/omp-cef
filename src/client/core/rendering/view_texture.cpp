@@ -36,9 +36,7 @@ bool ViewTexture::Create(LPDIRECT3DDEVICE9 device, int width, int height)
     device_ = device; width_ = width; height_ = height;
     LOG_DEBUG("[ViewTexture] Creating texture {}x{}", width, height);
 
-    // KORIŠTENJE D3DPOOL_SYSTEMMEM:
-    // Ova tekstura se NE GUBI pri Device Lost/Reset i idealna je za česti LockRect (CEF OSR)
-    HRESULT hr = device_->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &texture_, nullptr);
+    HRESULT hr = device_->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &texture_, nullptr);
     if (FAILED(hr))
     {
         LOG_ERROR("[ViewTexture] Failed to create D3D9 texture ({}x{})", width, height);
@@ -227,14 +225,74 @@ void ViewTexture::Draw(int x, int y)
 
 void ViewTexture::OnDeviceLost()
 {
-    // D3DPOOL_SYSTEMMEM teksture se NE gube i NE smiju se uništavati na Device Lost!
-    LOG_DEBUG("[ViewTexture] Device lost signal received (ignored for D3DPOOL_SYSTEMMEM)");
+    LOG_DEBUG("[ViewTexture] Device lost, releasing D3D9 texture only");
+
+    // Release ONLY the D3D9 texture (D3DPOOL_MANAGED resource)
+    if (texture_) {
+        texture_->Release();
+        texture_ = nullptr;
+    }
+
     isLost_ = true;
 }
 
 void ViewTexture::OnDeviceReset(LPDIRECT3DDEVICE9 device)
 {
-    LOG_DEBUG("[ViewTexture] Device reset signal received (re-assigning device handle only)");
+    if (!isLost_)
+    {
+        LOG_DEBUG("[ViewTexture] OnDeviceReset called but device wasn't lost, skipping");
+        return;
+    }
+
+    LOG_DEBUG("[ViewTexture] Device reset, recreating D3D9 texture {}x{}", width_, height_);
+
     device_ = device;
+
+    // Recreate the D3D9 texture
+    HRESULT hr = device_->CreateTexture(width_, height_, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &texture_, nullptr);
+    if (FAILED(hr))
+    {
+        LOG_ERROR("[ViewTexture] Failed to recreate D3D9 texture after reset: HRESULT=0x{:08X}", static_cast<unsigned>(hr));
+        return;
+    }
+
+    // Re-sync pixel data from RenderWare raster to D3D9 texture
+    if (rwRaster_)
+    {
+        uint8_t* rasterPixels = RwRasterLock(rwRaster_, 0, rwRASTERLOCKREAD);
+        if (rasterPixels)
+        {
+            D3DLOCKED_RECT rect;
+            if (SUCCEEDED(texture_->LockRect(0, &rect, nullptr, 0)))
+            {
+                const int rwPitch = rwRaster_->stride;
+                const int srcPitch = width_ * 4;
+                auto* dst = static_cast<uint8_t*>(rect.pBits);
+
+                if (rect.Pitch == rwPitch)
+                {
+                    memcpy(dst, rasterPixels, static_cast<size_t>(height_) * srcPitch);
+                }
+                else
+                {
+                    for (int y = 0; y < height_; ++y)
+                    {
+                        memcpy(dst + y * rect.Pitch, rasterPixels + y * rwPitch, srcPitch);
+                    }
+                }
+
+                texture_->UnlockRect(0);
+                LOG_DEBUG("[ViewTexture] Successfully restored pixel data from RwRaster");
+            }
+
+            RwRasterUnlock(rwRaster_);
+        }
+        else
+        {
+            LOG_WARN("[ViewTexture] Could not lock RwRaster to restore pixel data");
+        }
+    }
+
     isLost_ = false;
+    LOG_DEBUG("[ViewTexture] D3D9 texture recreation complete");
 }
