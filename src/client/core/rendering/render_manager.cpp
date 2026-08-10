@@ -147,11 +147,13 @@ namespace
                 &dev);
         }
 
-        DestroyDummyWindow(hwnd);
         d3d->Release();
 
         if (FAILED(hr) || !dev)
+        {
+            DestroyDummyWindow(hwnd);
             return false;
+        }
 
         *outDevice = dev;
         return true;
@@ -241,12 +243,20 @@ bool RenderManager::TryInstallBootstrapHooks() noexcept
     if (!CreateDummyDevice(&dummy) || !dummy)
         return false;
 
-    // Install hooks based on dummy vtable function pointers.
+    D3DPRESENT_PARAMETERS pp{};
+    TryGetPresentParameters(dummy, pp);
+
     EnsureDeviceHooksInstalled(dummy);
 
+    // 1. Prvo se oslobađa D3D uređaj koji drži referencu na HWND
     dummy->Release();
 
-    // If we got at least Present hooked, we're good.
+    // 2. Tek SADA je sigurno uništiti dummy prozor
+    if (pp.hDeviceWindow)
+    {
+        DestroyDummyWindow(pp.hDeviceWindow);
+    }
+
     return (orig_present_ != nullptr);
 }
 
@@ -554,7 +564,6 @@ HRESULT __stdcall RenderManager::hkReset(IDirect3DDevice9* self, D3DPRESENT_PARA
 
     if (isGameDevice)
     {
-        rm->reset_status_ = false;
 
         if (SUCCEEDED(hr) && pp)
         {
@@ -571,6 +580,8 @@ HRESULT __stdcall RenderManager::hkReset(IDirect3DDevice9* self, D3DPRESENT_PARA
             }
             rm->OnAfterReset(self, copy);
         }
+
+        rm->reset_status_ = false;
     }
 
     return hr;
@@ -639,7 +650,7 @@ HRESULT __stdcall RenderManager::hkPresent(IDirect3DDevice9* self, const RECT* s
 
     const bool isGameDevice = (self == rm->fast_device_.load(std::memory_order_acquire));
 
-    if (isGameDevice)
+    if (isGameDevice && !rm->reset_status_)
     {
         if (rm->OnPresent)
             rm->OnPresent();

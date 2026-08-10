@@ -1846,8 +1846,8 @@ void BrowserManager::OnDeviceReset(IDirect3DDevice9* device)
     // Static pages may not produce another OnPaint after Alt+Tab/device reset,
     // especially when another client plugin changes the D3D reset timing (like Samp Addons).
     isCefUpdatesPaused_ = false;
-    RestoreBrowserTextures();
-    RequestVisibleBrowsersRepaint();
+    //RestoreBrowserTextures();
+    //RequestVisibleBrowsersRepaint();
 }
 
 LRESULT BrowserManager::OnWndProcMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
