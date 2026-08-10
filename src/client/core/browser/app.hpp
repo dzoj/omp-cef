@@ -13,6 +13,10 @@ public:
         command_line->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
         command_line->AppendSwitchWithValue("allow-browser-signin", "false");
         command_line->AppendSwitch("enable-begin-frame-scheduling");
+
+        command_line->AppendSwitch("disable-gpu");
+        command_line->AppendSwitch("disable-gpu-compositing");
+        command_line->AppendSwitch("disable-gpu-shader-disk-cache");
     }
 
 private:
