@@ -270,7 +270,7 @@ bool BrowserManager::Initialize()
     CefString(&settings.locales_dir_path) = cef_locales_dir.wstring();
 
     settings.no_sandbox = true;
-    settings.log_severity = LOGSEVERITY_INFO;
+    settings.log_severity = LOGSEVERITY_VERBOSE;
     settings.multi_threaded_message_loop = true;
     settings.windowless_rendering_enabled = true;
     settings.persist_session_cookies = true;
