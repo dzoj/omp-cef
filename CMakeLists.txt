@@ -10,6 +10,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 option(BUILD_CLIENT "Build the client" OFF)
 option(BUILD_SERVER_OMP "Build the open.mp component" OFF)
 option(BUILD_SERVER_SAMP "Build the SA-MP plugin" OFF)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 if (WIN32)
 	add_compile_definitions(_WIN32_WINNT=0x0A00 NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)

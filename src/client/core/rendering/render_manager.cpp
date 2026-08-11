@@ -652,8 +652,15 @@ HRESULT __stdcall RenderManager::hkPresent(IDirect3DDevice9* self, const RECT* s
 
     if (isGameDevice && !rm->reset_status_)
     {
+        self->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+        self->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+        self->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+        self->SetRenderState(D3DRS_ZENABLE, FALSE);
+
         if (rm->OnPresent)
             rm->OnPresent();
+
+        self->SetTexture(0, nullptr);
     }
 
     return rm->orig_present_(self, src, dst, wnd, dirty);
