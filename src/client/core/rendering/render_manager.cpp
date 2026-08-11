@@ -623,13 +623,18 @@ HRESULT __stdcall RenderManager::hkEndScene(IDirect3DDevice9* self)
 
     if (isGameDevice)
     {
+        self->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
+
+        // 2. Osiguraj standardni Alpha Blend
         self->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         self->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
         self->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
         self->SetRenderState(D3DRS_ZENABLE, FALSE);
         self->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
-        // Forsiraj da D3D koristi Alpha kanal iz same CEF teksture
+        // 3. KLJUČNO: Onemogući da lighting/color iz igre utječe na CEF piksele
+        self->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+        self->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
         self->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
         self->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
